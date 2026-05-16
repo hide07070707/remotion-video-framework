@@ -1,6 +1,6 @@
 # Remotion Video Production Framework
 
-Remotionを使った縦型動画（YouTube Shorts / TikTok）制作フレームワークです。  
+Remotionを使った動画制作フレームワークです。  
 AI音声（ElevenLabs）+ AI画像でナレーション動画を自動生成します。
 
 ## 特徴
