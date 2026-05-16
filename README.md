@@ -1,6 +1,6 @@
 # Remotion Video Production Framework
 
-Remotionを使った動画制作フレームワークです。  
+Remotionを使った横型動画（1920×1080）制作フレームワークです。  
 AI音声（ElevenLabs）+ AI画像でナレーション動画を自動生成します。
 
 ## 特徴
