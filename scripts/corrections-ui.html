@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>読み間違い修正ツール</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Hiragino Sans', 'Yu Gothic', sans-serif; background: #f0f2f5; color: #333; }
+
+/* ヘッダー */
+header {
+  background: #1a1a2e; color: white;
+  padding: 14px 24px; position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+header h1 { font-size: 17px; margin-bottom: 10px; }
+.header-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+input[type="text"] {
+  padding: 7px 12px; border: 1px solid #ddd; border-radius: 6px;
+  font-size: 14px; font-family: inherit;
+}
+button {
+  padding: 7px 14px; border: none; border-radius: 6px;
+  cursor: pointer; font-size: 13px; font-family: inherit;
+  transition: opacity 0.15s;
+}
+button:hover { opacity: 0.85; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary { background: #4f46e5; color: white; }
+.btn-success { background: #16a34a; color: white; }
+.btn-danger  { background: #dc2626; color: white; }
+.btn-purple  { background: #7c3aed; color: white; }
+.btn-gray    { background: #6b7280; color: white; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+
+/* メイン */
+.main { max-width: 1100px; margin: 0 auto; padding: 20px; }
+
+/* 単語辞書パネル */
+.panel {
+  background: white; border-radius: 10px;
+  padding: 18px 20px; margin-bottom: 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.panel h2 { font-size: 15px; margin-bottom: 12px; color: #1a1a2e; }
+
+.word-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; min-height: 30px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #ede9fe; border: 1px solid #c4b5fd;
+  border-radius: 20px; padding: 4px 10px; font-size: 13px;
+}
+.chip .del { cursor: pointer; color: #9ca3af; font-size: 15px; line-height: 1; }
+.chip .del:hover { color: #dc2626; }
+
+.add-row { display: flex; gap: 8px; align-items: center; }
+.arrow { color: #9ca3af; font-size: 18px; }
+
+/* シーン一覧 */
+.list-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 10px;
+}
+.count-label { font-size: 13px; color: #6b7280; }
+.legend { font-size: 12px; color: #9ca3af; }
+
+.scene-list { display: flex; flex-direction: column; gap: 8px; }
+
+.scene-card {
+  background: white; border-radius: 10px; padding: 14px 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  border-left: 4px solid #e5e7eb;
+}
+.scene-card.word-fix  { border-left-color: #f59e0b; }
+.scene-card.scene-fix { border-left-color: #6366f1; }
+
+.card-top {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 6px;
+}
+.scene-id { font-size: 12px; color: #9ca3af; font-family: monospace; }
+
+.badge {
+  font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: bold;
+}
+.badge-word  { background: #fef3c7; color: #92400e; }
+.badge-scene { background: #ede9fe; color: #5b21b6; }
+.badge-ok    { background: #f0fdf4; color: #166534; }
+
+.subtitle { font-size: 15px; line-height: 1.6; margin-bottom: 4px; white-space: pre-wrap; }
+.tts-row  { font-size: 13px; color: #6366f1; margin-bottom: 8px; }
+.tts-label { font-size: 11px; color: #9ca3af; margin-right: 4px; }
+
+.card-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+audio { height: 32px; min-width: 200px; max-width: 320px; flex: 1; }
+
+/* インライン編集フォーム */
+.edit-form {
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid #f3f4f6;
+  display: none; gap: 8px; align-items: center;
+}
+.edit-form.open { display: flex; }
+.edit-form input { flex: 1; }
+
+/* ステータストースト */
+.toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: #1a1a2e; color: white;
+  padding: 12px 20px; border-radius: 8px; font-size: 14px;
+  opacity: 0; transform: translateY(8px);
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none; z-index: 999;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.err  { background: #dc2626; }
+
+/* シーンカード内の画像サムネイル */
+.scene-img-thumb {
+  width: 80px; height: 45px; object-fit: cover;
+  border-radius: 4px; background: #e5e7eb; flex-shrink: 0; cursor: pointer;
+  border: 2px solid transparent; transition: border-color 0.15s;
+}
+.scene-img-thumb:hover { border-color: #6366f1; }
+
+/* 画像モーダル */
+.img-modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55); z-index: 500;
+  justify-content: center; align-items: center;
+}
+.img-modal-overlay.open { display: flex; }
+.img-modal {
+  background: white; border-radius: 12px;
+  width: 860px; max-width: 96vw; max-height: 88vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+}
+.img-modal-header {
+  padding: 14px 18px; border-bottom: 1px solid #f0f0f0;
+  display: flex; justify-content: space-between; align-items: flex-start;
+}
+.img-modal-header h2 { font-size: 14px; }
+.img-modal-header p  { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+.img-modal-close {
+  background: none; border: none; font-size: 20px;
+  cursor: pointer; color: #9ca3af; padding: 2px 6px;
+}
+.img-modal-close:hover { color: #374151; }
+.img-upload-zone {
+  margin: 12px 18px 0; border: 2px dashed #c7d2fe; border-radius: 8px;
+  padding: 12px; text-align: center; color: #6366f1; font-size: 13px;
+  cursor: pointer; position: relative; transition: background 0.15s;
+  flex-shrink: 0;
+}
+.img-upload-zone:hover, .img-upload-zone.drag-active { background: #eef2ff; border-color: #4f46e5; }
+.img-upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.img-modal-filter { padding: 10px 18px; flex-shrink: 0; }
+.img-modal-filter input { width: 100%; }
+.img-modal-body { flex: 1; overflow-y: auto; padding: 0 18px 12px; }
+.img-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px;
+}
+.img-cell {
+  border-radius: 7px; overflow: hidden; cursor: pointer;
+  border: 3px solid transparent; transition: border-color 0.15s, transform 0.1s;
+  position: relative; background: #f3f4f6;
+}
+.img-cell:hover { border-color: #6366f1; transform: scale(1.03); }
+.img-cell.selected { border-color: #4f46e5; }
+.img-cell.current  { border-color: #16a34a; }
+.img-cell img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+.img-cell-name { font-size: 10px; color: #6b7280; padding: 2px 5px; background: #f9fafb; }
+.img-cell-badge {
+  position: absolute; top: 3px; right: 3px; font-size: 9px;
+  padding: 1px 5px; border-radius: 6px; color: white; pointer-events: none;
+}
+.badge-current { background: #16a34a; }
+.badge-selected { background: #4f46e5; }
+.img-modal-footer {
+  padding: 12px 18px; border-top: 1px solid #f0f0f0; flex-shrink: 0;
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+}
+.img-modal-footer-info { font-size: 13px; color: #6b7280; }
+.img-modal-footer-btns { display: flex; gap: 8px; }
+
+/* ローディングスピナー */
+.spinner {
+  display: inline-block; width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: white; border-radius: 50%;
+  animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 4px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎙 読み間違い修正ツール — 節子の和食ストーリー</h1>
+  <div class="header-row">
+    <input type="text" id="searchInput" placeholder="シーンIDまたは字幕で検索…"
+           style="width:260px" oninput="renderScenes()">
+    <label style="font-size:13px;color:#ccc;cursor:pointer">
+      <input type="checkbox" id="onlyFixed" onchange="renderScenes()">
+      修正ありのみ表示
+    </label>
+    <button class="btn-purple" id="regenAllBtn" onclick="regenAll()">🔄 全修正を再生成</button>
+    <button class="btn-gray" id="updateDurBtn" onclick="updateAllDurations()" title="再生成済み音声のdurationをまとめて修正">⏱ duration一括更新</button>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- 共有辞書 -->
+  <div class="panel" style="border-left: 4px solid #10b981;">
+    <h2>🌐 共有辞書（全ストーリー共通）</h2>
+    <p style="font-size:12px;color:#9ca3af;margin-bottom:10px;">どのストーリーにも自動的に適用されます。ストーリー固有の辞書と同じ単語がある場合はストーリー固有が優先されます。</p>
+    <div class="word-chips" id="sharedChips">
+      <span style="color:#9ca3af;font-size:13px">読み込み中…</span>
+    </div>
+    <div class="add-row">
+      <input type="text" id="swFrom" placeholder="修正前（例：先生）" style="width:150px">
+      <span class="arrow">→</span>
+      <input type="text" id="swTo"   placeholder="修正後（例：せんせい）" style="width:150px">
+      <button class="btn-success" onclick="addSharedWord()">共有辞書に追加</button>
+    </div>
+  </div>
+
+  <!-- ストーリー固有辞書 -->
+  <div class="panel">
+    <h2>📖 このストーリーの辞書（和食ストーリー専用）</h2>
+    <div class="word-chips" id="wordChips">
+      <span style="color:#9ca3af;font-size:13px">読み込み中…</span>
+    </div>
+    <div class="add-row">
+      <input type="text" id="wFrom" placeholder="修正前（例：節子）" style="width:150px">
+      <span class="arrow">→</span>
+      <input type="text" id="wTo"   placeholder="修正後（例：せつこ）" style="width:150px">
+      <button class="btn-primary" onclick="addWord()">このストーリーに追加</button>
+    </div>
+  </div>
+
+  <!-- シーン一覧ヘッダー -->
+  <div class="list-header">
+    <span class="count-label" id="countLabel">…</span>
+    <span class="legend">🟡 単語辞書で修正 &nbsp; 🟣 シーン個別修正</span>
+  </div>
+
+  <div class="scene-list" id="sceneList"></div>
+</div>
+
+<!-- 画像選択モーダル -->
+<div class="img-modal-overlay" id="imgModalOverlay" onclick="onImgOverlayClick(event)">
+  <div class="img-modal">
+    <div class="img-modal-header">
+      <div>
+        <h2 id="imgModalTitle">画像を変更</h2>
+        <p id="imgModalSub"></p>
+      </div>
+      <button class="img-modal-close" onclick="closeImageModal()">✕</button>
+    </div>
+    <div class="img-upload-zone" id="imgUploadZone"
+         ondragover="onImgUploadDragOver(event)"
+         ondragleave="onImgUploadDragLeave(event)"
+         ondrop="onImgUploadDrop(event)">
+      <input type="file" accept="image/*" multiple onchange="onImgFileSelect(event)">
+      📁 新しい画像をここにドロップ（またはクリックして選択）
+    </div>
+    <div class="img-modal-filter">
+      <input type="text" id="imgModalFilter" placeholder="ファイル名で絞り込み…" oninput="renderImgGrid()">
+    </div>
+    <div class="img-modal-body">
+      <div class="img-grid" id="imgGrid"></div>
+    </div>
+    <div class="img-modal-footer">
+      <div class="img-modal-footer-info" id="imgModalInfo">画像を選んでください</div>
+      <div class="img-modal-footer-btns">
+        <button class="btn-gray btn-sm" onclick="closeImageModal()">キャンセル</button>
+        <button class="btn-primary btn-sm" id="applySceneBtn" onclick="applyImgChange(false)" disabled>
+          このシーンのみ変更
+        </button>
+        <button class="btn-success btn-sm" id="applyGroupBtn" onclick="applyImgChange(true)" disabled>
+          グループ全体を変更
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ──────────────────────────────────────────────
+// State
+// ──────────────────────────────────────────────
+let scenes      = [];
+let corrections = { words: {}, scenes: {} };
+let shared      = { words: {} };
+let allImages   = [];
+let imgModal    = { sceneId: null, groupImg: null, groupSize: 0, selected: null };
+
+// ──────────────────────────────────────────────
+// Init
+// ──────────────────────────────────────────────
+async function init() {
+  const [s, c, sh, imgs] = await Promise.all([
+    fetch('/api/scenes').then(r => r.json()),
+    fetch('/api/corrections').then(r => r.json()),
+    fetch('/api/shared-corrections').then(r => r.json()),
+    fetch('/api/images').then(r => r.json()),
+  ]);
+  scenes      = s;
+  corrections = c;
+  shared      = sh;
+  allImages   = imgs;
+  render();
+}
+
+// ──────────────────────────────────────────────
+// Correction helpers
+// ──────────────────────────────────────────────
+function mergedWords() {
+  // story が shared を上書き（fix_readings.js と同じ優先順位）
+  return { ...shared.words, ...corrections.words };
+}
+
+function applyWords(text) {
+  let r = text;
+  const entries = Object.entries(mergedWords())
+    .filter(([k]) => !k.startsWith('_'))
+    .sort((a, b) => b[0].length - a[0].length);
+  for (const [from, to] of entries) r = r.split(from).join(to);
+  return r;
+}
+
+function getTts(scene) {
+  return corrections.scenes?.[scene.id] ?? applyWords(scene.subtitle);
+}
+
+// ──────────────────────────────────────────────
+// Render
+// ──────────────────────────────────────────────
+function render() {
+  renderSharedWords();
+  renderWords();
+  renderScenes();
+}
+
+function renderSharedWords() {
+  const words = Object.entries(shared.words || {}).filter(([k]) => !k.startsWith('_'));
+  const el = document.getElementById('sharedChips');
+  if (words.length === 0) {
+    el.innerHTML = '<span style="color:#9ca3af;font-size:13px">まだ共有辞書は空です</span>';
+    return;
+  }
+  el.innerHTML = words.map(([from, to]) => `
+    <div class="chip" style="background:#d1fae5;border-color:#6ee7b7;">
+      <span>${esc(from)}</span>
+      <span style="color:#9ca3af">→</span>
+      <span style="color:#059669">${esc(to)}</span>
+      <span class="del" title="削除" onclick="removeSharedWord('${esc(from)}')">×</span>
+    </div>
+  `).join('');
+}
+
+function renderWords() {
+  const words = Object.entries(corrections.words || {}).filter(([k]) => !k.startsWith('_'));
+  const el = document.getElementById('wordChips');
+  if (words.length === 0) {
+    el.innerHTML = '<span style="color:#9ca3af;font-size:13px">このストーリー固有の辞書は空です</span>';
+    return;
+  }
+  el.innerHTML = words.map(([from, to]) => `
+    <div class="chip">
+      <span>${esc(from)}</span>
+      <span style="color:#9ca3af">→</span>
+      <span style="color:#6366f1">${esc(to)}</span>
+      <span class="del" title="削除" onclick="removeWord('${esc(from)}')">×</span>
+    </div>
+  `).join('');
+}
+
+function normalize(str) {
+  return str.replace(/\s/g, '').toLowerCase();
+}
+
+function renderScenes() {
+  const q         = normalize(document.getElementById('searchInput').value);
+  const onlyFixed = document.getElementById('onlyFixed').checked;
+
+  let list = scenes;
+  if (q)         list = list.filter(s => s.id.toLowerCase().includes(q) || normalize(s.subtitle).includes(q));
+  if (onlyFixed) list = list.filter(s => getTts(s) !== s.subtitle);
+
+  document.getElementById('countLabel').textContent = `${list.length} / ${scenes.length} シーン`;
+
+  document.getElementById('sceneList').innerHTML = list.map(scene => {
+    const tts      = getTts(scene);
+    const hasScene = !!corrections.scenes?.[scene.id];
+    const hasWord  = !hasScene && tts !== scene.subtitle;
+    const cardCls  = hasScene ? 'scene-fix' : hasWord ? 'word-fix' : '';
+    const badge    = hasScene
+      ? '<span class="badge badge-scene">シーン個別修正</span>'
+      : hasWord
+      ? '<span class="badge badge-word">単語辞書修正</span>'
+      : '<span class="badge badge-ok">修正なし</span>';
+    const ttsRow   = tts !== scene.subtitle
+      ? `<div class="tts-row"><span class="tts-label">TTS:</span>${esc(tts)}</div>` : '';
+    const delBtn   = hasScene
+      ? `<button class="btn-danger btn-sm" onclick="removeSceneFix('${scene.id}')">🗑 削除</button>` : '';
+    const editVal  = hasScene ? tts : tts;
+
+    const imgPath = scene.image || '';
+
+    return `
+    <div class="scene-card ${cardCls}" id="card-${scene.id}">
+      <div class="card-top">
+        <span class="scene-id">${scene.id}  (SC${scene.scene_no})</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${imgPath ? `<img class="scene-img-thumb" src="/public/${imgPath}" loading="lazy"
+               title="${imgPath.split('/').pop()}"
+               onclick="openImageModal('${scene.id}')"
+               onerror="this.style.display='none'">` : ''}
+          ${badge}
+        </div>
+      </div>
+      <div class="subtitle">${esc(scene.subtitle)}</div>
+      ${ttsRow}
+      <div class="card-controls">
+        <audio controls src="/audio/${scene.id}.mp3" preload="none"></audio>
+        <button class="btn-primary btn-sm" onclick="openEdit('${scene.id}')">✏️ 音声修正</button>
+        <button class="btn-success btn-sm" onclick="regenScene('${scene.id}')">🔄 再生成</button>
+        <button class="btn-gray btn-sm" onclick="openImageModal('${scene.id}')">🖼 画像変更</button>
+        ${delBtn}
+      </div>
+      <div class="edit-form" id="ef-${scene.id}">
+        <input type="text" id="ei-${scene.id}"
+               placeholder="TTS用テキスト（正しい読み方）"
+               value="${esc(editVal)}">
+        <button class="btn-primary btn-sm" onclick="saveSceneFix('${scene.id}')">保存</button>
+        <button class="btn-gray btn-sm" onclick="closeEdit('${scene.id}')">キャンセル</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ──────────────────────────────────────────────
+// Shared dict operations
+// ──────────────────────────────────────────────
+async function addSharedWord() {
+  const from = document.getElementById('swFrom').value.trim();
+  const to   = document.getElementById('swTo').value.trim();
+  if (!from || !to) { toast('修正前・修正後の両方を入力してください', true); return; }
+  shared.words[from] = to;
+  await saveShared();
+  document.getElementById('swFrom').value = '';
+  document.getElementById('swTo').value   = '';
+  render();
+  toast(`共有辞書に「${from} → ${to}」を追加しました`);
+}
+
+async function removeSharedWord(word) {
+  delete shared.words[word];
+  await saveShared();
+  render();
+  toast(`共有辞書から「${word}」を削除しました`);
+}
+
+// ──────────────────────────────────────────────
+// Word dict operations
+// ──────────────────────────────────────────────
+async function addWord() {
+  const from = document.getElementById('wFrom').value.trim();
+  const to   = document.getElementById('wTo').value.trim();
+  if (!from || !to) { toast('修正前・修正後の両方を入力してください', true); return; }
+  corrections.words[from] = to;
+  await save();
+  document.getElementById('wFrom').value = '';
+  document.getElementById('wTo').value   = '';
+  render();
+  toast(`「${from} → ${to}」を追加しました`);
+}
+
+async function removeWord(word) {
+  delete corrections.words[word];
+  await save();
+  render();
+  toast(`「${word}」を削除しました`);
+}
+
+// ──────────────────────────────────────────────
+// Scene fix operations
+// ──────────────────────────────────────────────
+function openEdit(id) {
+  document.getElementById(`ef-${id}`).classList.add('open');
+}
+function closeEdit(id) {
+  document.getElementById(`ef-${id}`).classList.remove('open');
+}
+
+async function saveSceneFix(id) {
+  const val = document.getElementById(`ei-${id}`).value.trim();
+  if (!val) { toast('テキストを入力してください', true); return; }
+  corrections.scenes[id] = val;
+  await save();
+  closeEdit(id);
+  render();
+  toast(`${id} のシーン修正を保存しました`);
+}
+
+async function removeSceneFix(id) {
+  delete corrections.scenes[id];
+  await save();
+  render();
+  toast(`${id} のシーン修正を削除しました`);
+}
+
+// ──────────────────────────────────────────────
+// Regenerate
+// ──────────────────────────────────────────────
+async function regenScene(id) {
+  const card = document.getElementById(`card-${id}`);
+  const btn  = card.querySelector('.btn-success');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>生成中…';
+  toast(`${id} を再生成中…`);
+
+  const res  = await fetch('/api/regenerate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: 'scene', value: id }),
+  });
+  const data = await res.json();
+
+  btn.disabled = false;
+  btn.innerHTML = '🔄 再生成';
+
+  if (data.ok) {
+    // キャッシュバスター付きで音声を再読み込み
+    const audio = card.querySelector('audio');
+    if (audio) audio.src = `/audio/${id}.mp3?t=${Date.now()}`;
+    toast(`✅ ${id} の再生成が完了しました`);
+  } else {
+    toast('❌ エラーが発生しました（コンソールを確認）', true);
+    console.error(data.output);
+  }
+}
+
+async function regenAll() {
+  const targets = scenes.filter(s => getTts(s) !== s.subtitle);
+  if (targets.length === 0) { toast('修正が必要なシーンはありません'); return; }
+  if (!confirm(`${targets.length} シーンを再生成します。よろしいですか？（数分かかります）`)) return;
+
+  const btn = document.getElementById('regenAllBtn');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span>${targets.length} 件を再生成中…`;
+  toast(`${targets.length} シーンを再生成中…`);
+
+  const res  = await fetch('/api/regenerate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: 'all' }),
+  });
+  const data = await res.json();
+
+  btn.disabled = false;
+  btn.innerHTML = '🔄 全修正を再生成';
+
+  if (data.ok) {
+    toast(`✅ 全 ${targets.length} シーンの再生成が完了しました`);
+  } else {
+    toast('❌ エラーが発生しました（コンソールを確認）', true);
+    console.error(data.output);
+  }
+}
+
+// ──────────────────────────────────────────────
+// 画像モーダル
+// ──────────────────────────────────────────────
+function openImageModal(sceneId) {
+  const scene = scenes.find(s => s.id === sceneId);
+  imgModal.sceneId   = sceneId;
+  imgModal.groupImg  = scene?.image || '';
+  imgModal.groupSize = scenes.filter(s => s.image === imgModal.groupImg).length;
+  imgModal.selected  = null;
+
+  document.getElementById('imgModalTitle').textContent = `🖼 画像を変更 — ${sceneId}`;
+  document.getElementById('imgModalSub').textContent =
+    `現在: ${imgModal.groupImg.split('/').pop()}　（同じ画像を使用: ${imgModal.groupSize}シーン）`;
+  document.getElementById('imgModalFilter').value = '';
+  document.getElementById('imgModalInfo').textContent = '画像を選んでください';
+  document.getElementById('applySceneBtn').disabled = true;
+  document.getElementById('applyGroupBtn').disabled = true;
+  renderImgGrid();
+  document.getElementById('imgModalOverlay').classList.add('open');
+}
+
+function closeImageModal() {
+  document.getElementById('imgModalOverlay').classList.remove('open');
+  imgModal.selected = null;
+}
+
+function onImgOverlayClick(e) {
+  if (e.target === document.getElementById('imgModalOverlay')) closeImageModal();
+}
+
+function renderImgGrid() {
+  const q = document.getElementById('imgModalFilter').value.trim().toLowerCase();
+  let imgs = allImages;
+  if (q) imgs = imgs.filter(p => p.split('/').pop().toLowerCase().includes(q));
+
+  document.getElementById('imgGrid').innerHTML = imgs.map(imgPath => {
+    const name       = imgPath.split('/').pop();
+    const isCurrent  = imgPath === imgModal.groupImg;
+    const isSelected = imgPath === imgModal.selected;
+    const badge      = isSelected
+      ? '<div class="img-cell-badge badge-selected">選択中</div>'
+      : isCurrent
+      ? '<div class="img-cell-badge badge-current">現在</div>'
+      : '';
+    return `
+    <div class="img-cell ${isCurrent ? 'current' : ''} ${isSelected ? 'selected' : ''}"
+         onclick="selectImg('${imgPath}')">
+      <img src="/public/${imgPath}" alt="${name}" loading="lazy">
+      <div class="img-cell-name">${name}</div>
+      ${badge}
+    </div>`;
+  }).join('');
+}
+
+function selectImg(imgPath) {
+  imgModal.selected = imgPath;
+  const name = imgPath.split('/').pop();
+  document.getElementById('imgModalInfo').textContent = `選択中: ${name}`;
+  document.getElementById('applySceneBtn').disabled = false;
+  document.getElementById('applyGroupBtn').disabled = false;
+  renderImgGrid();
+}
+
+async function applyImgChange(applyToGroup) {
+  if (!imgModal.selected) return;
+  const { sceneId, groupImg, selected } = imgModal;
+
+  const res  = await fetch('/api/image-assign', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sceneId, newImage: selected, applyToGroup }),
+  });
+  const data = await res.json();
+
+  if (data.ok) {
+    scenes.forEach(s => {
+      if (applyToGroup ? s.image === groupImg : s.id === sceneId) s.image = selected;
+    });
+    closeImageModal();
+    renderScenes();
+    toast(`✅ ${data.updated}シーンの画像を変更しました`);
+  } else {
+    toast('❌ エラー: ' + data.error, true);
+  }
+}
+
+// アップロード
+function onImgUploadDragOver(event) {
+  event.preventDefault(); event.stopPropagation();
+  document.getElementById('imgUploadZone').classList.add('drag-active');
+}
+function onImgUploadDragLeave(event) {
+  document.getElementById('imgUploadZone').classList.remove('drag-active');
+}
+function onImgUploadDrop(event) {
+  event.preventDefault(); event.stopPropagation();
+  document.getElementById('imgUploadZone').classList.remove('drag-active');
+  [...event.dataTransfer.files].filter(f => f.type.startsWith('image/')).forEach(uploadImgFile);
+}
+function onImgFileSelect(event) {
+  [...event.target.files].forEach(uploadImgFile);
+  event.target.value = '';
+}
+function uploadImgFile(file) {
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    toast(`⬆️ ${file.name} をアップロード中…`);
+    const res  = await fetch('/api/upload-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: file.name, data: e.target.result }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      if (!allImages.includes(data.path)) allImages = [...allImages, data.path].sort();
+      renderImgGrid();
+      toast(`✅ ${file.name} を追加しました`);
+    } else {
+      toast('❌ アップロード失敗', true);
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+// ──────────────────────────────────────────────
+// Utils
+// ──────────────────────────────────────────────
+async function save() {
+  await fetch('/api/corrections', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(corrections),
+  });
+}
+
+async function saveShared() {
+  await fetch('/api/shared-corrections', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(shared),
+  });
+}
+
+
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function toast(msg, isErr = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className   = 'toast show' + (isErr ? ' err' : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), isErr ? 5000 : 3000);
+}
+
+// ──────────────────────────────────────────────
+// 全シーンの duration 一括更新
+async function updateAllDurations() {
+  const btn = document.getElementById('updateDurBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>計測中…';
+  toast('全シーンの duration を再計測中…');
+
+  try {
+    const res  = await fetch('/api/update-all-durations', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      toast('✅ duration の一括更新が完了しました。Remotion に自動反映されます');
+    } else {
+      toast('❌ エラーが発生しました', true);
+    }
+  } catch {
+    toast('❌ 通信エラー', true);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '⏱ duration一括更新';
+}
+
+// ──────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>画像管理 — 節子の和食ストーリー</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Hiragino Sans', 'Yu Gothic', sans-serif; background: #f0f2f5; color: #333;
+       height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ヘッダー */
+header {
+  background: #1a1a2e; color: white;
+  padding: 12px 20px; flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+}
+header h1 { font-size: 16px; white-space: nowrap; }
+.back-link { color: #a5b4fc; font-size: 13px; text-decoration: none; white-space: nowrap; }
+.back-link:hover { color: white; }
+.header-stats { font-size: 12px; color: #94a3b8; margin-left: auto; white-space: nowrap; }
+
+/* 2ペインレイアウト */
+.layout {
+  display: flex; flex: 1; overflow: hidden; gap: 0;
+}
+
+/* ───── 左ペイン：画像ライブラリ ───── */
+.left-panel {
+  width: 300px; min-width: 300px;
+  background: white; border-right: 1px solid #e5e7eb;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+.left-header {
+  padding: 12px; border-bottom: 1px solid #f0f0f0; flex-shrink: 0;
+}
+.left-header h2 { font-size: 13px; color: #374151; margin-bottom: 8px; }
+
+/* アップロードゾーン */
+.upload-zone {
+  border: 2px dashed #c7d2fe; border-radius: 8px;
+  padding: 14px 10px; text-align: center;
+  color: #6366f1; font-size: 12px; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  margin-bottom: 8px; position: relative;
+}
+.upload-zone:hover, .upload-zone.drag-active {
+  background: #eef2ff; border-color: #4f46e5;
+}
+.upload-zone input[type="file"] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer;
+}
+.upload-zone .uz-icon { font-size: 22px; margin-bottom: 4px; }
+
+.img-filter input {
+  width: 100%; padding: 6px 10px; border: 1px solid #e5e7eb;
+  border-radius: 6px; font-size: 13px;
+}
+
+/* 画像グリッド */
+.img-library {
+  flex: 1; overflow-y: auto; padding: 10px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  align-content: start;
+}
+
+.lib-thumb {
+  border-radius: 6px; overflow: hidden; cursor: grab;
+  border: 2px solid transparent;
+  transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+  position: relative; background: #111;
+  user-select: none;
+}
+.lib-thumb:hover { border-color: #6366f1; box-shadow: 0 2px 8px rgba(99,102,241,0.3); }
+.lib-thumb.dragging { opacity: 0.5; cursor: grabbing; }
+.lib-thumb.in-use { border-color: #10b981; }
+.lib-thumb img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; pointer-events: none; }
+.lib-thumb-name {
+  font-size: 9px; color: #6b7280; padding: 2px 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: #f9fafb;
+}
+.lib-badge {
+  position: absolute; top: 2px; right: 2px;
+  background: #10b981; color: white;
+  font-size: 9px; padding: 1px 4px; border-radius: 6px;
+  pointer-events: none;
+}
+.lib-count {
+  position: absolute; bottom: 20px; right: 2px;
+  background: rgba(0,0,0,0.65); color: white;
+  font-size: 9px; padding: 1px 4px; border-radius: 4px;
+  pointer-events: none;
+}
+
+/* ───── 右ペイン：シーングループ ───── */
+.right-panel {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+
+.right-header {
+  padding: 12px 16px; background: white;
+  border-bottom: 1px solid #e5e7eb; flex-shrink: 0;
+  display: flex; gap: 10px; align-items: center;
+}
+.right-header h2 { font-size: 13px; color: #374151; white-space: nowrap; }
+.right-header input {
+  flex: 1; padding: 6px 10px; border: 1px solid #e5e7eb;
+  border-radius: 6px; font-size: 13px;
+}
+
+.group-list {
+  flex: 1; overflow-y: auto; padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+/* グループカード */
+.group-card {
+  background: white; border-radius: 10px;
+  border: 2px solid transparent;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  overflow: hidden; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.group-card.drag-over {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
+}
+
+.group-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; background: #f9fafb;
+  border-bottom: 1px solid #f0f0f0;
+}
+.group-thumb {
+  width: 64px; height: 36px; object-fit: cover;
+  border-radius: 4px; flex-shrink: 0; background: #ddd;
+}
+.group-info { flex: 1; min-width: 0; }
+.group-img-name { font-size: 11px; color: #6b7280; font-family: monospace; }
+.group-scene-count { font-size: 11px; color: #9ca3af; }
+.group-drop-hint {
+  font-size: 11px; color: #6366f1; padding: 3px 8px;
+  background: #eef2ff; border-radius: 12px; white-space: nowrap; flex-shrink: 0;
+}
+
+.scene-rows { display: flex; flex-direction: column; }
+.scene-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px; font-size: 13px;
+  border-bottom: 1px solid #f9fafb;
+  transition: background 0.1s;
+}
+.scene-row:last-child { border-bottom: none; }
+.scene-row.drag-over { background: #eef2ff; }
+.scene-row-id { font-family: monospace; font-size: 11px; color: #9ca3af; min-width: 58px; }
+.scene-row-text {
+  flex: 1; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; color: #374151;
+}
+
+/* ボタン */
+button {
+  padding: 5px 10px; border: none; border-radius: 6px;
+  cursor: pointer; font-size: 12px; font-family: inherit;
+  transition: opacity 0.15s;
+}
+button:hover { opacity: 0.85; }
+.btn-sm-primary { background: #4f46e5; color: white; white-space: nowrap; }
+.btn-sm-gray    { background: #6b7280; color: white; white-space: nowrap; }
+
+/* トースト */
+.toast {
+  position: fixed; bottom: 20px; right: 20px;
+  background: #1a1a2e; color: white;
+  padding: 10px 18px; border-radius: 8px; font-size: 13px;
+  opacity: 0; transform: translateY(6px);
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none; z-index: 999;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.err  { background: #dc2626; }
+
+/* ドラッグ中のゴースト */
+.drag-ghost {
+  position: fixed; pointer-events: none;
+  width: 80px; height: 50px; border-radius: 6px; overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  z-index: 9999; opacity: 0.9; display: none;
+}
+.drag-ghost img { width: 100%; height: 100%; object-fit: cover; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🖼 画像管理 — 節子の和食ストーリー</h1>
+  <a href="/" class="back-link">← 修正ツールに戻る</a>
+  <span class="header-stats" id="headerStats">読み込み中…</span>
+</header>
+
+<div class="layout">
+
+  <!-- ── 左ペイン：画像ライブラリ ── -->
+  <div class="left-panel">
+    <div class="left-header">
+      <h2>📚 画像ライブラリ</h2>
+
+      <!-- アップロードゾーン -->
+      <div class="upload-zone" id="uploadZone"
+           ondragover="onUploadDragOver(event)"
+           ondragleave="onUploadDragLeave(event)"
+           ondrop="onUploadDrop(event)">
+        <input type="file" accept="image/*" multiple onchange="onFileSelect(event)">
+        <div class="uz-icon">📁</div>
+        <div>新しい画像をここにドロップ</div>
+        <div style="color:#9ca3af;margin-top:2px">またはクリックして選択</div>
+      </div>
+
+      <!-- 検索 -->
+      <div class="img-filter">
+        <input type="text" id="imgFilter" placeholder="画像名で絞り込み…" oninput="renderLibrary()">
+      </div>
+    </div>
+
+    <!-- サムネイルグリッド -->
+    <div class="img-library" id="imgLibrary"></div>
+  </div>
+
+  <!-- ── 右ペイン：シーングループ ── -->
+  <div class="right-panel">
+    <div class="right-header">
+      <h2>🎬 シーングループ</h2>
+      <input type="text" id="sceneSearch" placeholder="シーンIDまたは字幕で検索…" oninput="renderGroups()">
+    </div>
+    <div class="group-list" id="groupList"></div>
+  </div>
+</div>
+
+<!-- ドラッグゴースト -->
+<div class="drag-ghost" id="dragGhost"><img id="dragGhostImg" src=""></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ──────────────────────────────────────
+// State
+// ──────────────────────────────────────
+let scenes    = [];
+let allImages = [];
+let groups    = [];
+let draggingImg = null;  // ドラッグ中の画像パス
+
+// ──────────────────────────────────────
+// Init
+// ──────────────────────────────────────
+async function init() {
+  const [s, imgs] = await Promise.all([
+    fetch('/api/scenes').then(r => r.json()),
+    fetch('/api/images').then(r => r.json()),
+  ]);
+  scenes    = s;
+  allImages = imgs;
+  groups    = buildGroups(scenes);
+  renderAll();
+}
+
+function buildGroups(scenes) {
+  const result = [];
+  let i = 0;
+  while (i < scenes.length) {
+    const img = scenes[i].image;
+    const grp = { image: img, scenes: [] };
+    while (i < scenes.length && scenes[i].image === img) {
+      grp.scenes.push(scenes[i]); i++;
+    }
+    result.push(grp);
+  }
+  return result;
+}
+
+function usageCount(imgPath) {
+  return scenes.filter(s => s.image === imgPath).length;
+}
+
+function renderAll() {
+  const total   = scenes.length;
+  const grpCount = groups.length;
+  document.getElementById('headerStats').textContent =
+    `${grpCount} グループ / ${total} シーン / ${allImages.length} 枚の画像`;
+  renderLibrary();
+  renderGroups();
+}
+
+// ──────────────────────────────────────
+// 左ペイン：ライブラリ
+// ──────────────────────────────────────
+function renderLibrary() {
+  const q = document.getElementById('imgFilter').value.trim().toLowerCase();
+  let imgs = allImages;
+  if (q) imgs = imgs.filter(p => p.split('/').pop().toLowerCase().includes(q));
+
+  document.getElementById('imgLibrary').innerHTML = imgs.map(imgPath => {
+    const name  = imgPath.split('/').pop();
+    const count = usageCount(imgPath);
+    const badge = count > 0 ? `<div class="lib-badge">✓</div>` : '';
+    const countBadge = count > 0 ? `<div class="lib-count">${count}</div>` : '';
+    return `
+    <div class="lib-thumb ${count > 0 ? 'in-use' : ''}"
+         draggable="true"
+         ondragstart="onLibDragStart(event, '${imgPath}')"
+         ondragend="onLibDragEnd(event)"
+         title="${name}（${count}シーンで使用中）">
+      <img src="/public/${imgPath}" alt="${name}" loading="lazy"
+           onerror="this.parentElement.style.minHeight='45px'">
+      <div class="lib-thumb-name">${name}</div>
+      ${badge}${countBadge}
+    </div>`;
+  }).join('');
+}
+
+// ──────────────────────────────────────
+// 右ペイン：グループ
+// ──────────────────────────────────────
+function renderGroups() {
+  const q = normalize(document.getElementById('sceneSearch').value);
+  let list = groups;
+  if (q) {
+    list = groups.filter(g =>
+      g.scenes.some(s => s.id.toLowerCase().includes(q) || normalize(s.subtitle).includes(q))
+    );
+  }
+
+  document.getElementById('groupList').innerHTML = list.map((grp, gi) => {
+    const imgName   = grp.image.split('/').pop();
+    const sceneRows = grp.scenes.map(s => `
+      <div class="scene-row"
+           ondragover="onSceneDragOver(event)"
+           ondragleave="onSceneDragLeave(event)"
+           ondrop="onSceneDrop(event, '${s.id}', false)"
+           title="ここにドロップ → このシーンのみ変更">
+        <span class="scene-row-id">${s.id}</span>
+        <span class="scene-row-text">${esc(s.subtitle.replace(/\n/g, ' '))}</span>
+      </div>
+    `).join('');
+
+    return `
+    <div class="group-card" id="grp-${gi}"
+         ondragover="onGroupDragOver(event, ${gi})"
+         ondragleave="onGroupDragLeave(event, ${gi})"
+         ondrop="onGroupDrop(event, '${grp.scenes[0].id}', '${esc(grp.image)}', ${gi})">
+      <div class="group-header">
+        <img class="group-thumb" src="/public/${grp.image}" alt="${imgName}"
+             onerror="this.style.background='#ccc'">
+        <div class="group-info">
+          <div class="group-img-name">${imgName}</div>
+          <div class="group-scene-count">${grp.scenes.length} シーン</div>
+        </div>
+        <div class="group-drop-hint">← ここにドロップでグループ全体変更</div>
+      </div>
+      <div class="scene-rows">${sceneRows}</div>
+    </div>`;
+  }).join('');
+}
+
+// ──────────────────────────────────────
+// ライブラリのドラッグ操作
+// ──────────────────────────────────────
+function onLibDragStart(event, imgPath) {
+  draggingImg = imgPath;
+  event.dataTransfer.setData('text/plain', imgPath);
+  event.dataTransfer.effectAllowed = 'copy';
+  event.currentTarget.classList.add('dragging');
+
+  // カスタムゴースト
+  const ghost = document.getElementById('dragGhost');
+  document.getElementById('dragGhostImg').src = `/public/${imgPath}`;
+  ghost.style.display = 'block';
+  event.dataTransfer.setDragImage(ghost, 40, 25);
+}
+
+function onLibDragEnd(event) {
+  draggingImg = null;
+  event.currentTarget.classList.remove('dragging');
+  document.getElementById('dragGhost').style.display = 'none';
+}
+
+// ──────────────────────────────────────
+// グループカードのドロップ操作（グループ全体）
+// ──────────────────────────────────────
+function onGroupDragOver(event, gi) {
+  if (!draggingImg) return;
+  event.preventDefault();
+  event.stopPropagation();
+  event.dataTransfer.dropEffect = 'copy';
+  document.getElementById(`grp-${gi}`).classList.add('drag-over');
+}
+
+function onGroupDragLeave(event, gi) {
+  // 子要素へのleaveは無視
+  if (event.currentTarget.contains(event.relatedTarget)) return;
+  document.getElementById(`grp-${gi}`).classList.remove('drag-over');
+}
+
+async function onGroupDrop(event, sceneId, currentImg, gi) {
+  event.preventDefault();
+  document.getElementById(`grp-${gi}`).classList.remove('drag-over');
+  const imgPath = event.dataTransfer.getData('text/plain');
+  if (!imgPath || imgPath === currentImg) return;
+  await assignImage(sceneId, imgPath, true);
+}
+
+// ──────────────────────────────────────
+// シーン行のドロップ操作（1シーンのみ）
+// ──────────────────────────────────────
+function onSceneDragOver(event) {
+  if (!draggingImg) return;
+  event.preventDefault();
+  event.stopPropagation();
+  event.dataTransfer.dropEffect = 'copy';
+  event.currentTarget.classList.add('drag-over');
+}
+
+function onSceneDragLeave(event) {
+  event.currentTarget.classList.remove('drag-over');
+}
+
+async function onSceneDrop(event, sceneId, applyToGroup) {
+  event.preventDefault();
+  event.stopPropagation();
+  event.currentTarget.classList.remove('drag-over');
+  const imgPath = event.dataTransfer.getData('text/plain');
+  const scene   = scenes.find(s => s.id === sceneId);
+  if (!imgPath || (scene && imgPath === scene.image)) return;
+  await assignImage(sceneId, imgPath, false);
+}
+
+// ──────────────────────────────────────
+// 画像割り当てAPI
+// ──────────────────────────────────────
+async function assignImage(sceneId, newImage, applyToGroup) {
+  const scene    = scenes.find(s => s.id === sceneId);
+  const oldImage = scene?.image;
+
+  const res  = await fetch('/api/image-assign', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sceneId, newImage, applyToGroup }),
+  });
+  const data = await res.json();
+
+  if (data.ok) {
+    // ローカル state を更新
+    scenes.forEach(s => {
+      if (applyToGroup ? s.image === oldImage : s.id === sceneId) s.image = newImage;
+    });
+    groups = buildGroups(scenes);
+    renderAll();
+    const newName = newImage.split('/').pop();
+    toast(`✅ ${data.updated}シーンを「${newName}」に変更しました`);
+  } else {
+    toast('❌ エラー: ' + data.error, true);
+  }
+}
+
+// ──────────────────────────────────────
+// アップロード
+// ──────────────────────────────────────
+function onUploadDragOver(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  document.getElementById('uploadZone').classList.add('drag-active');
+}
+
+function onUploadDragLeave(event) {
+  document.getElementById('uploadZone').classList.remove('drag-active');
+}
+
+function onUploadDrop(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  document.getElementById('uploadZone').classList.remove('drag-active');
+  const files = [...event.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+  files.forEach(uploadFile);
+}
+
+function onFileSelect(event) {
+  [...event.target.files].forEach(uploadFile);
+  event.target.value = '';
+}
+
+function uploadFile(file) {
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    toast(`⬆️ ${file.name} をアップロード中…`);
+    const res  = await fetch('/api/upload-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: file.name, data: e.target.result }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      if (!allImages.includes(data.path)) {
+        allImages = [...allImages, data.path].sort();
+      }
+      renderLibrary();
+      toast(`✅ ${file.name} を追加しました`);
+    } else {
+      toast('❌ アップロード失敗: ' + data.error, true);
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+// ──────────────────────────────────────
+// Utils
+// ──────────────────────────────────────
+function normalize(str) { return str.replace(/\s/g, '').toLowerCase(); }
+
+function esc(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg, isErr = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className   = 'toast show' + (isErr ? ' err' : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), isErr ? 5000 : 3000);
+}
+
+// ──────────────────────────────────────
+init();
+</script>
+</body>
+</html>

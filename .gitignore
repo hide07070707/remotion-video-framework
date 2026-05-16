@@ -1,0 +1,100 @@
+# ============================================================
+# 秘密情報（絶対にGitHubに上げない）
+# ============================================================
+.env
+.env.local
+.env.*.local
+# 親フォルダの .env も参照するが git には含めない
+
+# ============================================================
+# Node.js
+# ============================================================
+node_modules/
+
+# ============================================================
+# ストーリー固有データ（台本・音声・画像は非公開）
+# 友人は自分の台本で /create-story から始める
+# ============================================================
+public/assets/washoku/
+public/assets/keiko-mitsuko-story/
+# 新ストーリーを追加したら同様に追加する
+# public/assets/your-next-story/
+
+# キャラクター画像（ストーリー固有）
+public/assets/characters/
+
+# ストーリー制作ファイル（台本・プロンプト・分析）
+public/assets/all_chapters_prompts*.md
+public/assets/narration_script*
+public/assets/batch_requests*.jsonl
+public/assets/ref_uris.json
+public/assets/scene_list_review.md
+public/assets/chapter1_preview.html
+public/assets/preview_all.html
+public/assets/previews/
+
+# ルートレベルのマニフェスト（ストーリー固有）
+public/manifest.json
+
+# src内のストーリー固有データ
+src/manifest.json
+src/text_map.json
+
+# ルートレベルのストーリー制作ファイル
+direction_plan*.md
+full_script*.txt
+batch_ch1.jsonl
+batch_requests.jsonl
+production_rule.md
+ANTIGRAVITY.md
+
+# scriptsのストーリー固有データ
+scripts/audio-durations.json
+scripts/voices.json
+
+# ============================================================
+# 生成メディア（大容量・有料API生成物）
+# ============================================================
+# 旧プロジェクト音声（washoku移行前の旧システム）
+public/assets/audio/
+# ストーリー別の音声・画像
+public/assets/*/audio/
+public/assets/*/images/
+
+# 共有辞書の実データ（テンプレートは含める）
+public/assets/shared/corrections.json
+
+# ============================================================
+# デバッグ・一時ファイル
+# ============================================================
+subtitle_check.png
+tsc_output.txt
+
+# ============================================================
+# レンダリング済み動画
+# ============================================================
+out/
+*.mp4
+*.mov
+*.avi
+
+# ============================================================
+# ビルド生成物・ログ
+# ============================================================
+dist/
+build/
+*.log
+npm-debug.log*
+
+# ============================================================
+# フォント（ライセンス品・再配布不可）
+# ============================================================
+public/fonts/
+
+# ============================================================
+# OS / エディタ
+# ============================================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

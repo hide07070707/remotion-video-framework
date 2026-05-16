@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yoko Voice Audition</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #eee;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .desc {
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Yoko Voice Candidates (Audition)</h1>
+    <p>Script: 「六十五歳になって知ったのは、朝の静寂がいかに贅沢な果実であるかということだ。」</p>
+
+    <div class="card">
+        <h2>Pattern A: Mature (Low Pitch)</h2>
+        <div class="desc">Model: Neural2-B | Pitch: -2.0 | Speed: 0.95</div>
+        <audio controls src="./sample_A.mp3"></audio>
+    </div>
+
+    <div class="card">
+        <h2>Pattern B: Elderly (Deep)</h2>
+        <div class="desc">Model: Neural2-B | Pitch: -4.0 | Speed: 0.90</div>
+        <audio controls src="./sample_B.mp3"></audio>
+    </div>
+
+    <div class="card">
+        <h2>Pattern C: Soft (Standard)</h2>
+        <div class="desc">Model: Standard-B | Pitch: -1.0 | Speed: 0.95</div>
+        <audio controls src="./sample_C.mp3"></audio>
+    </div>
+</body>
+
+</html>

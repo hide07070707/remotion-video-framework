@@ -1,0 +1,35 @@
+{
+  "name": "my-video",
+  "version": "1.0.0",
+  "description": "Remotion video",
+  "scripts": {
+    "start": "remotion preview src/index.ts",
+    "render": "remotion render src/index.ts Video out/video.mp4",
+    "upgrade": "remotion upgrade",
+    "test": "eslint src --ext ts,tsx && tsc"
+  },
+  "dependencies": {
+    "@remotion/google-fonts": "^4.0.0",
+    "@remotion/zod-types": "^4.0.0",
+    "mp3-duration": "^1.1.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "remotion": "4.0.0",
+    "zod": "^3.22.3"
+  },
+  "devDependencies": {
+    "@remotion/cli": "4.0.0",
+    "@remotion/eslint-config": "4.0.0",
+    "@types/react": "^18.0.0",
+    "@types/web": "^0.0.86",
+    "eslint": "^8.0.0",
+    "kuroshiro": "^1.2.0",
+    "kuroshiro-analyzer-kuromoji": "^1.1.0",
+    "prettier": "^3.0.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
